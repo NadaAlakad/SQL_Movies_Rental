@@ -1,0 +1,81 @@
+/* Query 1 */
+SELECT film_title, 
+             category_name,
+             rental_count
+FROM (SELECT f.title As film_title, 
+                          c.name As category_name,
+                          Count(r.rental_id) As Rental_Count
+              FROM category c
+              JOIN   film_category fc
+              ON     c.category_id = fc.category_id
+              JOIN   film f
+              ON     fc.film_id = f.film_id
+              JOIN   inventory i
+              ON     f.film_id = i.film_id
+              JOIN   rental r
+              ON     i.inventory_id = r.inventory_id
+              WHERE c.name='Animation' 
+                           OR c.name='Children' 
+                           OR c.name='Classic'
+                           OR c.name='Comedy' 
+                           OR c.name='Family' 
+                           OR c.name='Music'
+               GROUP BY 1, 2) T
+ ORDER BY 2,1;
+
+
+/* Query 2 */
+SELECT DATE_PART('month',r.rental_date) as rental_month,
+             DATE_PART('year',r.rental_date) as rental_year,
+             i.store_ID,
+             COUNT(r.rental_id) as count_rentals
+FROM rental r
+JOIN inventory i
+ON r.inventory_id = i.inventory_id
+GROUP BY 1,2,3
+ORDER BY 4 DESC;
+
+
+/* Query 3 */
+SELECT DATE_TRUNC('month', p.payment_date) AS pay_mon,
+              CONCAT(c.firstname,' ',c.lastname) AS fullname,
+              COUNT(p.payment_id) as pay_countpermonth,
+              SUM(p.amount) pay_amount
+FROM payment p
+JOIN (SELECT c1.first_name firstname, 
+                        c1.last_name lastname, 
+                        c1.customer_id id, sum(p1.amount)
+          FROM payment p1
+          JOIN customer c1
+          ON p1.customer_id = c1.customer_id
+          GROUP BY 1,2,3
+          ORDER BY 4 desc
+          LIMIT 10) c
+ON p.customer_id = c.id 
+GROUP BY 1,2
+ORDER BY 2,1;
+
+/* Query 4 */
+SELECT pay_mon, 
+             fullname, 
+             pay_amount, 
+             lead(pay_amount) OVER (Order By fullname) AS lead,
+             lead(pay_amount) OVER (Order By fullname) - pay_amount AS leaddifference
+FROM (SELECT DATE_TRUNC('month', p.payment_date) AS pay_mon,
+                          CONCAT(c.firstname,' ',c.lastname) AS fullname,
+                          SUM(p.amount) pay_amount
+           FROM payment p
+           JOIN (SELECT c1.first_name firstname, 
+                                   c1.last_name lastname, 
+                                   c1.customer_id id, sum(p1.amount) Total
+                     FROM payment p1
+                     JOIN customer c1
+                     ON p1.customer_id = c1.customer_id
+                    GROUP BY 1,2,3
+                    ORDER BY 4 desc
+                    LIMIT 10) c
+           ON p.customer_id = c.id  
+           GROUP BY 1,2
+           ORDER BY 2,1) T
+ORDER BY 5 DESC;
+
